@@ -12,6 +12,7 @@ config.read('config.ini')
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
+asana_url = "https://app.asana.com/api/1.0/tasks"
 token = os.environ['ASANA_API_TOKEN']
 github_token = os.environ['GITHUB_API_TOKEN']
 
@@ -20,8 +21,6 @@ not_started_id = config.getint('DEFAULT', 'not_started_id')
 in_dev_id = config.getint('DEFAULT', 'in_dev_id')
 in_pr_id = config.getint('DEFAULT', 'in_pr_id')
 merged_done_id = config.getint('DEFAULT', 'merged_done_id')
-
-asana_url = "https://app.asana.com/api/1.0/tasks"
 
 
 def handler(event, context):
@@ -133,13 +132,21 @@ def add_section(task, action, pr):
         do_add_section(task_id, in_pr_id)
     elif action == 'closed' and pr['merged']:
         do_add_section(task_id, merged_done_id)
+        mark_completed(task_id)
 
 
 def do_add_section(task_id, section):
     data = {'project': "{}".format(
         project_id), 'section': "{}".format(section)}
-    logger.error("%s", data)
     r = requests.post("{}/{}/addProject".format(asana_url, task_id),
                       headers=url_headers(), data=data)
     logger.error("add section %s status code %s",
                  section, r.status_code)
+
+
+def mark_completed(task_id):
+    data = {'completed': 'true'}
+    r = requests.put("{}/{}".format(asana_url, task_id),
+                     headers=url_headers(), data=data)
+    logger.error("marking complete task %s status code %s",
+                 task_id, r.status_code)
