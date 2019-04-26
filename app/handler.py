@@ -27,7 +27,8 @@ asana_url = "https://app.asana.com/api/1.0/tasks"
 def handler(event, context):
     logger.error('## EVENT')
     logger.error(event)
-    task_id = find_task_id(event.pull_request)  # wherever the pr body is
+    # https://developer.github.com/v3/activity/events/types/#pullrequestevent
+    task_id = find_task_id(event.pull_request)
     get_and_update_task(task_id, event.action, event.pull_request)
 
 
@@ -48,12 +49,13 @@ def url_headers():
 
 
 def get_and_update_task(task_id=os.environ["ASANA_TEST_TASK_ID"],
-                        action='closed', pr={'merged': 'true'}):
+                        action='closed', pr={'merged': 'true', 'html_url': 'http://testing.com'}):
     r = requests.get("{}/{}".format(asana_url, task_id),
                      headers=json_headers())
     if r.status_code == 200:
         try:
             task = r.json()['data']
+            add_github_link(task, pr['html_url'])
             confirm_project(task)
             update_project(task, action, pr)
         except KeyError as e:
@@ -63,6 +65,24 @@ def get_and_update_task(task_id=os.environ["ASANA_TEST_TASK_ID"],
     else:
         raise Exception(
             "Received bad status code from asana, {}".format(r.status_code))
+
+
+def find(f, array):
+    for item in array:
+        if f(item):
+            return item
+
+
+def add_github_link(task, url):
+    github_field = find(
+        lambda field: field["name"] == "GitHub PR", task['custom_fields'])
+    if github_field:
+        data = {'data': {'custom_fields': {}}}
+        data['data']['custom_fields'][github_field["id"]] = url
+        requests.put("{}/{}".format(asana_url,
+                                    task["id"]), headers=json_headers(), json=data)
+        logger.error("updating github field %s with %s",
+                     github_field["id"], url)
 
 
 def confirm_project(task):
