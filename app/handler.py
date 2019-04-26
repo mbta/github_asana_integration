@@ -16,7 +16,6 @@ asana_url = "https://app.asana.com/api/1.0/tasks"
 token = os.environ['ASANA_API_TOKEN']
 github_token = os.environ['GITHUB_API_TOKEN']
 
-project_id = config.getint('DEFAULT', 'project_id')
 not_started_id = config.getint('DEFAULT', 'not_started_id')
 in_dev_id = config.getint('DEFAULT', 'in_dev_id')
 in_pr_id = config.getint('DEFAULT', 'in_pr_id')
@@ -27,14 +26,15 @@ def handler(event, context):
     logger.error('## EVENT')
     logger.error(event)
     # https://developer.github.com/v3/activity/events/types/#pullrequestevent
-    task_id = find_task_id(event.pull_request)
-    get_and_update_task(task_id, event.action, event.pull_request)
+    asana_ids = find_asana_ids(event['pull_request'])
+    get_and_update_task(asana_ids, event['action'], event['pull_request'])
 
 
-def find_task_id(pr_object):
-    asana_match = re.compile(
-        r"(https?:\/\/)(app.asana.com\/0\/{}\/)([0-9]*)".format(project_id))
-    return asana_match.search(pr_object.description).group(3)
+def find_asana_ids(pr_object):
+    regex = re.compile(
+        r"(https?:\/\/app.asana.com\/0\/([0-9]*)\/([0-9]*))")
+    match = regex.search(pr_object['description'])
+    return {'task_id': match.group(3), 'project_id': match.group(2)}
 
 
 def json_headers():
@@ -47,16 +47,19 @@ def url_headers():
             'Authorization': "Bearer {}".format(os.environ['ASANA_API_TOKEN'])}
 
 
-def get_and_update_task(task_id=os.environ["ASANA_TEST_TASK_ID"],
+def get_and_update_task(ids={'task_id': os.environ["ASANA_TEST_TASK_ID"],
+                             'project_id': config.getint('TEST', 'project_id')},
                         action='closed', pr={'merged': 'true', 'html_url': 'http://testing.com'}):
+    project_id = int(ids['project_id'])
+    task_id = ids['task_id']
     r = requests.get("{}/{}".format(asana_url, task_id),
                      headers=json_headers())
     if r.status_code == 200:
         try:
             task = r.json()['data']
             add_github_link(task, pr['html_url'])
-            confirm_project(task)
-            update_project(task, action, pr)
+            confirm_project(task, project_id)
+            update_project(task, project_id, action, pr)
         except KeyError as e:
             raise Exception(
                 "No data found for task {}, reason {}".format(task_id, e))
@@ -84,35 +87,35 @@ def add_github_link(task, url):
                      github_field["id"], url)
 
 
-def confirm_project(task):
-    if any(confirm_member(member) for member in task["memberships"]):
+def confirm_project(task, project_id):
+    if any(confirm_member(member, project_id) for member in task["memberships"]):
         return True
     raise Exception(
-        "Task {} is not in on the project board in Not Started, in Dev, or in PR"
-        .format(task['id']))
+        "Task {} is not on the project board {} in Not Started, in Dev, or in PR"
+        .format(task['id'], project_id))
 
 
-def confirm_member(member):
+def confirm_member(member, project_id):
     if member['project']['id'] == project_id:
         if (member['section']['id'] in [not_started_id, in_dev_id, in_pr_id]):
             return True
     return False
 
 
-def update_project(task, action, pr):
+def update_project(task, project_id, action, pr):
     try:
-        remove_section(task)
-        add_section(task, action, pr)
+        remove_section(task, project_id)
+        add_section(task, project_id, action, pr)
     except Exception as e:
         raise Exception("Updating project failed, {}".format(e))
 
 
-def remove_section(task):
+def remove_section(task, project_id):
     for member in task['memberships']:
-        do_remove_section(member, task['id'])
+        do_remove_section(member, task['id'], project_id)
 
 
-def do_remove_section(member, task_id):
+def do_remove_section(member, task_id, project_id):
     current_project_id = member['project']['id']
     if current_project_id == project_id:
         section = member['section']['id']
@@ -126,16 +129,16 @@ def do_remove_section(member, task_id):
                          section, r.status_code)
 
 
-def add_section(task, action, pr):
+def add_section(task, project_id, action, pr):
     task_id = task['id']
     if action in ('opened', 'edited'):
-        do_add_section(task_id, in_pr_id)
+        do_add_section(task_id, project_id, in_pr_id)
     elif action == 'closed' and pr['merged']:
-        do_add_section(task_id, merged_done_id)
+        do_add_section(task_id, project_id, merged_done_id)
         mark_completed(task_id)
 
 
-def do_add_section(task_id, section):
+def do_add_section(task_id, project_id, section):
     data = {'project': "{}".format(
         project_id), 'section': "{}".format(section)}
     r = requests.post("{}/{}/addProject".format(asana_url, task_id),
