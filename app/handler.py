@@ -22,7 +22,7 @@ in_pr_id = config.getint('DEFAULT', 'in_pr_id')
 merged_done_id = config.getint('DEFAULT', 'merged_done_id')
 
 
-def handler(event, context):
+def handler(event, context):  # pylint:disable=unused-argument
     logger.error('## EVENT')
     logger.error(event)
     # https://developer.github.com/v3/activity/events/types/#pullrequestevent
