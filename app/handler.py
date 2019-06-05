@@ -1,6 +1,7 @@
 #! /usr/bin/env python3
 
 import configparser
+import json
 import logging
 import os
 import re
@@ -12,9 +13,8 @@ config.read('config.ini')
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
-asana_url = "https://app.asana.com/api/1.0/tasks"
+asana_url = 'https://app.asana.com/api/1.0/tasks'
 token = os.environ['ASANA_API_TOKEN']
-github_token = os.environ['GITHUB_API_TOKEN']
 
 not_started_id = config.getint('DEFAULT', 'not_started_id')
 in_dev_id = config.getint('DEFAULT', 'in_dev_id')
@@ -23,18 +23,26 @@ merged_done_id = config.getint('DEFAULT', 'merged_done_id')
 
 
 def handler(event, context):  # pylint:disable=unused-argument
-    logger.error('## EVENT')
-    logger.error(event)
+    event = json.loads(event['body'])
+    if "DEBUG_INTEGRATION" in os.environ:
+        logger.error('## EVENT BODY')
+        logger.error(event)
     # https://developer.github.com/v3/activity/events/types/#pullrequestevent
     asana_ids = find_asana_ids(event['pull_request'])
-    get_and_update_task(asana_ids, event['action'], event['pull_request'])
+    if asana_ids:
+        get_and_update_task(event['action'], event['pull_request'], asana_ids)
+    else:
+        raise Exception(
+            "Asana id not found in the PR at {}".format(event["pull_request"]['html_url']))
 
 
 def find_asana_ids(pr_object):
     regex = re.compile(
         r"(https?:\/\/app.asana.com\/0\/([0-9]*)\/([0-9]*))")
-    match = regex.search(pr_object['description'])
-    return {'task_id': match.group(3), 'project_id': match.group(2)}
+    match = regex.search(pr_object['body'])
+    if match:
+        return {'task_id': match.group(3), 'project_id': match.group(2)}
+    return None
 
 
 def json_headers():
@@ -47,9 +55,9 @@ def url_headers():
             'Authorization': "Bearer {}".format(os.environ['ASANA_API_TOKEN'])}
 
 
-def get_and_update_task(ids={'task_id': os.environ["ASANA_TEST_TASK_ID"],
-                             'project_id': config.getint('TEST', 'project_id')},
-                        action='closed', pr={'merged': 'true', 'html_url': 'http://testing.com'}):
+def get_and_update_task(action='closed', pr={'merged': 'true', 'html_url': 'http://testing.com'},
+                        ids={'task_id': os.environ["ASANA_TEST_TASK_ID"],
+                             'project_id': config.getint('TEST', 'project_id')},):
     project_id = int(ids['project_id'])
     task_id = ids['task_id']
     r = requests.get("{}/{}".format(asana_url, task_id),
@@ -104,29 +112,9 @@ def confirm_member(member, project_id):
 
 def update_project(task, project_id, action, pr):
     try:
-        remove_section(task, project_id)
         add_section(task, project_id, action, pr)
     except Exception as e:
         raise Exception("Updating project failed, {}".format(e))
-
-
-def remove_section(task, project_id):
-    for member in task['memberships']:
-        do_remove_section(member, task['id'], project_id)
-
-
-def do_remove_section(member, task_id, project_id):
-    current_project_id = member['project']['id']
-    if current_project_id == project_id:
-        section = member['section']['id']
-        if (section in [not_started_id, in_dev_id, in_pr_id]):
-            data = {'project': project_id, 'section': section}
-            r = requests.post("{}/{}/removeProject".format(asana_url,
-                                                           task_id),
-                              headers=url_headers(),
-                              data=data)
-            logger.error("remove section %s status code %s",
-                         section, r.status_code)
 
 
 def add_section(task, project_id, action, pr):
