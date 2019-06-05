@@ -1,7 +1,7 @@
-# Work in progress
-This app is intended to be a AWS lambda that will act as a webhook for Github Pull Request Events and update Asana tasks accordingly.
+# github-asana-integration
+This code is run as an AWS lambda that acts as a webhook for Github Pull Request Events. It updates the location of Asana tasks on a sprint board when PRs are opened or merged. It also updates a custom field on Asana tasks called "GitHub PR" with the PR's url, even after the PR is open. 
 
-# Basic setup for local development
+# Setup for local development
 * `brew install python3`
 * `pip install virtualenv`
   
@@ -19,7 +19,7 @@ The project currently includes `autopep8` for formatting and `pylint` for lintin
   * `autopep -i handler.py`
   * `pylint handler.py`
 
-# Basic deployment of new code
+# Deployment of new code
 In this `app` dir,
   * Add the dependencies
     * `rm -rf venv`
