@@ -27,9 +27,9 @@ merged_done_id = config.getint('DEFAULT', 'merged_done_id')
 
 def handler(event, context):  # pylint:disable=unused-argument
     if not validate_signature(event):
-        raise Exception("Signature sha does not match")
+        raise Exception('Signature sha does not match')
     event = json.loads(event['body'])
-    if "DEBUG_INTEGRATION" in os.environ:
+    if 'DEBUG_INTEGRATION' in os.environ:
         logger.debug('## EVENT BODY')
         logger.debug(event)
     # https://developer.github.com/v3/activity/events/types/#pullrequestevent
@@ -38,7 +38,7 @@ def handler(event, context):  # pylint:disable=unused-argument
         get_and_update_task(event['action'], event['pull_request'], asana_ids)
     else:
         raise Exception(
-            "Asana id not found in the PR at {}".format(event["pull_request"]['html_url']))
+            "Asana id not found in the PR at {}".format(event['pull_request']['html_url']))
 
 
 def validate_signature(event):
@@ -71,7 +71,7 @@ def url_headers():
 
 
 def get_and_update_task(action='closed', pr={'merged': 'true', 'html_url': 'http://testing.com'},
-                        ids={'task_id': os.environ["ASANA_TEST_TASK_ID"],
+                        ids={'task_id': os.environ['ASANA_TEST_TASK_ID'],
                              'project_id': config.getint('TEST', 'project_id')},):
     project_id = int(ids['project_id'])
     task_id = ids['task_id']
@@ -96,18 +96,18 @@ def find(f, array):
 
 def add_github_link(task, url):
     github_field = find(
-        lambda field: field['name'] == "GitHub PR", task['custom_fields'])
+        lambda field: field['name'] == 'GitHub PR', task['custom_fields'])
     if github_field and github_field['text_value'] != url:
         data = {'data': {'custom_fields': {}}}
-        data['data']['custom_fields'][github_field["id"]] = url
+        data['data']['custom_fields'][github_field['id']] = url
         requests.put("{}/{}".format(asana_url,
-                                    task["id"]), headers=json_headers(), json=data)
+                                    task['id']), headers=json_headers(), json=data)
         logger.info("updating github field %s with %s",
-                    github_field["id"], url)
+                    github_field['id'], url)
 
 
 def confirm_project(task, project_id):
-    if any(confirm_member(member, project_id) for member in task["memberships"]):
+    if any(confirm_member(member, project_id) for member in task['memberships']):
         return True
     raise Exception(
         "Task {} is not on the project board {} in Not Started, in Dev, or in PR"
