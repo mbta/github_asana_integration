@@ -1,6 +1,8 @@
 #! /usr/bin/env python3
 
 import configparser
+import hashlib
+import hmac
 import json
 import logging
 import os
@@ -15,6 +17,7 @@ logger.setLevel(logging.INFO)
 
 asana_url = 'https://app.asana.com/api/1.0/tasks'
 token = os.environ['ASANA_API_TOKEN']
+hook_secret_key = os.environb[b'GITHUB_SECRET']
 
 not_started_id = config.getint('DEFAULT', 'not_started_id')
 in_dev_id = config.getint('DEFAULT', 'in_dev_id')
@@ -23,6 +26,8 @@ merged_done_id = config.getint('DEFAULT', 'merged_done_id')
 
 
 def handler(event, context):  # pylint:disable=unused-argument
+    if not validate_signature(event):
+        raise Exception("Signature sha does not match")
     event = json.loads(event['body'])
     if "DEBUG_INTEGRATION" in os.environ:
         logger.error('## EVENT BODY')
@@ -34,6 +39,16 @@ def handler(event, context):  # pylint:disable=unused-argument
     else:
         raise Exception(
             "Asana id not found in the PR at {}".format(event["pull_request"]['html_url']))
+
+
+def validate_signature(event):
+    sha_name, signature = event['headers']['X-Hub-Signature'].split('=')
+    if sha_name != 'sha1':
+        return False
+
+    mac = hmac.new(hook_secret_key, msg=event['body'].encode(
+        'utf-8'), digestmod=hashlib.sha1)
+    return hmac.compare_digest(mac.hexdigest(), signature)
 
 
 def find_asana_ids(pr_object):
@@ -63,14 +78,10 @@ def get_and_update_task(action='closed', pr={'merged': 'true', 'html_url': 'http
     r = requests.get("{}/{}".format(asana_url, task_id),
                      headers=json_headers())
     if r.status_code == 200:
-        try:
-            task = r.json()['data']
-            add_github_link(task, pr['html_url'])
-            confirm_project(task, project_id)
-            update_project(task, project_id, action, pr)
-        except KeyError as e:
-            raise Exception(
-                "No data found for task {}, reason {}".format(task_id, e))
+        task = r.json()['data']
+        add_github_link(task, pr['html_url'])
+        confirm_project(task, project_id)
+        update_project(task, project_id, action, pr)
 
     else:
         raise Exception(
