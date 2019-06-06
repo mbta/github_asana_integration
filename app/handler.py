@@ -96,8 +96,8 @@ def find(f, array):
 
 def add_github_link(task, url):
     github_field = find(
-        lambda field: field["name"] == "GitHub PR", task['custom_fields'])
-    if github_field:
+        lambda field: field['name'] == "GitHub PR", task['custom_fields'])
+    if github_field and github_field['text_value'] != url:
         data = {'data': {'custom_fields': {}}}
         data['data']['custom_fields'][github_field["id"]] = url
         requests.put("{}/{}".format(asana_url,
