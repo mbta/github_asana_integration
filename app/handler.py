@@ -30,8 +30,8 @@ def handler(event, context):  # pylint:disable=unused-argument
         raise Exception("Signature sha does not match")
     event = json.loads(event['body'])
     if "DEBUG_INTEGRATION" in os.environ:
-        logger.error('## EVENT BODY')
-        logger.error(event)
+        logger.debug('## EVENT BODY')
+        logger.debug(event)
     # https://developer.github.com/v3/activity/events/types/#pullrequestevent
     asana_ids = find_asana_ids(event['pull_request'])
     if asana_ids:
@@ -102,8 +102,8 @@ def add_github_link(task, url):
         data['data']['custom_fields'][github_field["id"]] = url
         requests.put("{}/{}".format(asana_url,
                                     task["id"]), headers=json_headers(), json=data)
-        logger.error("updating github field %s with %s",
-                     github_field["id"], url)
+        logger.info("updating github field %s with %s",
+                    github_field["id"], url)
 
 
 def confirm_project(task, project_id):
@@ -142,13 +142,13 @@ def do_add_section(task_id, project_id, section):
         project_id), 'section': "{}".format(section)}
     r = requests.post("{}/{}/addProject".format(asana_url, task_id),
                       headers=url_headers(), data=data)
-    logger.error("add section %s status code %s",
-                 section, r.status_code)
+    logger.info("add section %s status code %s",
+                section, r.status_code)
 
 
 def mark_completed(task_id):
     data = {'completed': 'true'}
     r = requests.put("{}/{}".format(asana_url, task_id),
                      headers=url_headers(), data=data)
-    logger.error("marking complete task %s status code %s",
-                 task_id, r.status_code)
+    logger.info("marking complete task %s status code %s",
+                task_id, r.status_code)
