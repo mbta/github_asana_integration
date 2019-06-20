@@ -13,6 +13,7 @@ In `app` dir,
     * `rm -rf venv` (to start with a fresh venv without dev dependencies)
     * `virtualenv -p python3 venv`
     * `. venv/bin/activate`
+    * `pip install -r requirements.txt`
     * `pip install <dep>` and `pip freeze > requirements.txt`
 
 The project currently includes `autopep8` for formatting and `pylint` for linting.
@@ -25,7 +26,7 @@ In `app` dir,
     * `rm -rf venv`
     * `virtualenv -p python3 venv`
     * `. venv/bin/activate`
-    * `pip install requirements.txt`
+    * `pip install -r requirements.txt`
     * `deactivate`
     * `cd venv/lib/python3.7/site-packages`
     * `zip -r9 ../../../../function.zip .`
