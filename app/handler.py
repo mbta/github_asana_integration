@@ -72,8 +72,8 @@ def url_headers():
 
 def get_and_update_task(action='closed', pr={'merged': 'true', 'html_url': 'http://testing.com'},
                         ids={'task_id': os.environ['ASANA_TEST_TASK_ID'],
-                             'project_id': config.getint('TEST', 'project_id')},):
-    project_id = int(ids['project_id'])
+                             'project_id': config.get('TEST', 'project_id')},):
+    project_id = ids['project_id']
     task_id = ids['task_id']
     r = requests.get("{}/{}".format(asana_url, task_id),
                      headers=json_headers())
@@ -139,7 +139,7 @@ def add_section(task, project_id, action, pr):
 
 def do_add_section(task_id, project_id, section):
     data = {'project': "{}".format(
-        project_id), 'section': "{}".format(section)}
+        project_id), 'section': "{}".format(section), 'insert_after': 'null'}
     r = requests.post("{}/{}/addProject".format(asana_url, task_id),
                       headers=url_headers(), data=data)
     logger.info("add section %s status code %s",
