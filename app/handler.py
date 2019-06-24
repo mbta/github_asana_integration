@@ -75,6 +75,8 @@ def get_and_update_task(action='closed', pr={'merged': 'true', 'html_url': 'http
                              'project_id': config.get('TEST', 'project_id')},):
     project_id = ids['project_id']
     task_id = ids['task_id']
+    logger.info("Found project %s with task %s in PR body",
+                project_id, task_id)
     r = requests.get("{}/{}".format(asana_url, task_id),
                      headers=json_headers())
     if r.status_code == 200:
@@ -85,7 +87,7 @@ def get_and_update_task(action='closed', pr={'merged': 'true', 'html_url': 'http
 
     else:
         raise Exception(
-            "Received bad status code from asana, {}".format(r.status_code))
+            "Error retrieving task {} from asana, status code {}".format(task_id, r.status_code))
 
 
 def find(f, array):
@@ -100,10 +102,10 @@ def add_github_link(task, url):
     if github_field and github_field['text_value'] != url:
         data = {'data': {'custom_fields': {}}}
         data['data']['custom_fields'][github_field['gid']] = url
-        requests.put("{}/{}".format(asana_url,
-                                    task['gid']), headers=json_headers(), json=data)
-        logger.info("updating github field %s with %s",
-                    github_field['gid'], url)
+        r = requests.put("{}/{}".format(asana_url,
+                                        task['gid']), headers=json_headers(), json=data)
+        logger.info("Updating github field %s with %s, status code %s",
+                    github_field['gid'], url, r.status_code)
 
 
 def confirm_project(task, project_id):
@@ -142,13 +144,13 @@ def do_add_section(task_id, project_id, section):
         project_id), 'section': "{}".format(section), 'insert_after': 'null'}
     r = requests.post("{}/{}/addProject".format(asana_url, task_id),
                       headers=url_headers(), data=data)
-    logger.info("add section %s status code %s",
-                section, r.status_code)
+    logger.info("Add section %s to task %s, status code %s",
+                section, task_id, r.status_code)
 
 
 def mark_completed(task_id):
     data = {'completed': 'true'}
     r = requests.put("{}/{}".format(asana_url, task_id),
                      headers=url_headers(), data=data)
-    logger.info("marking complete task %s status code %s",
+    logger.info("Marking complete task %s, status code %s",
                 task_id, r.status_code)
