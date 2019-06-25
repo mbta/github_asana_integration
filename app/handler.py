@@ -19,10 +19,10 @@ asana_url = 'https://app.asana.com/api/1.0/tasks'
 token = os.environ['ASANA_API_TOKEN']
 hook_secret_key = os.environb[b'GITHUB_SECRET']
 
-not_started_id = config.getint('DEFAULT', 'not_started_id')
-in_dev_id = config.getint('DEFAULT', 'in_dev_id')
-in_pr_id = config.getint('DEFAULT', 'in_pr_id')
-merged_done_id = config.getint('DEFAULT', 'merged_done_id')
+not_started_id = config.get('DEFAULT', 'not_started_id')
+in_dev_id = config.get('DEFAULT', 'in_dev_id')
+in_pr_id = config.get('DEFAULT', 'in_pr_id')
+merged_done_id = config.get('DEFAULT', 'merged_done_id')
 
 
 def handler(event, context):  # pylint:disable=unused-argument
@@ -72,9 +72,11 @@ def url_headers():
 
 def get_and_update_task(action='closed', pr={'merged': 'true', 'html_url': 'http://testing.com'},
                         ids={'task_id': os.environ['ASANA_TEST_TASK_ID'],
-                             'project_id': config.getint('TEST', 'project_id')},):
-    project_id = int(ids['project_id'])
+                             'project_id': config.get('TEST', 'project_id')},):
+    project_id = ids['project_id']
     task_id = ids['task_id']
+    logger.info("Found project %s with task %s in PR body",
+                project_id, task_id)
     r = requests.get("{}/{}".format(asana_url, task_id),
                      headers=json_headers())
     if r.status_code == 200:
@@ -85,7 +87,7 @@ def get_and_update_task(action='closed', pr={'merged': 'true', 'html_url': 'http
 
     else:
         raise Exception(
-            "Received bad status code from asana, {}".format(r.status_code))
+            "Error retrieving task {} from asana, status code {}".format(task_id, r.status_code))
 
 
 def find(f, array):
@@ -99,11 +101,11 @@ def add_github_link(task, url):
         lambda field: field['name'] == 'GitHub PR', task['custom_fields'])
     if github_field and github_field['text_value'] != url:
         data = {'data': {'custom_fields': {}}}
-        data['data']['custom_fields'][github_field['id']] = url
-        requests.put("{}/{}".format(asana_url,
-                                    task['id']), headers=json_headers(), json=data)
-        logger.info("updating github field %s with %s",
-                    github_field['id'], url)
+        data['data']['custom_fields'][github_field['gid']] = url
+        r = requests.put("{}/{}".format(asana_url,
+                                        task['gid']), headers=json_headers(), json=data)
+        logger.info("Updating github field %s with %s, status code %s",
+                    github_field['gid'], url, r.status_code)
 
 
 def confirm_project(task, project_id):
@@ -111,12 +113,12 @@ def confirm_project(task, project_id):
         return True
     raise Exception(
         "Task {} is not on the project board {} in Not Started, in Dev, or in PR"
-        .format(task['id'], project_id))
+        .format(task['gid'], project_id))
 
 
 def confirm_member(member, project_id):
-    if member['project']['id'] == project_id:
-        if (member['section']['id'] in [not_started_id, in_dev_id, in_pr_id]):
+    if member['project']['gid'] == project_id:
+        if (member['section']['gid'] in [not_started_id, in_dev_id, in_pr_id]):
             return True
     return False
 
@@ -129,7 +131,7 @@ def update_project(task, project_id, action, pr):
 
 
 def add_section(task, project_id, action, pr):
-    task_id = task['id']
+    task_id = task['gid']
     if action in ('opened', 'edited'):
         do_add_section(task_id, project_id, in_pr_id)
     elif action == 'closed' and pr['merged']:
@@ -139,16 +141,16 @@ def add_section(task, project_id, action, pr):
 
 def do_add_section(task_id, project_id, section):
     data = {'project': "{}".format(
-        project_id), 'section': "{}".format(section)}
+        project_id), 'section': "{}".format(section), 'insert_after': None}
     r = requests.post("{}/{}/addProject".format(asana_url, task_id),
                       headers=url_headers(), data=data)
-    logger.info("add section %s status code %s",
-                section, r.status_code)
+    logger.info("Add section %s to task %s, status code %s",
+                section, task_id, r.status_code)
 
 
 def mark_completed(task_id):
     data = {'completed': 'true'}
     r = requests.put("{}/{}".format(asana_url, task_id),
                      headers=url_headers(), data=data)
-    logger.info("marking complete task %s status code %s",
+    logger.info("Marking complete task %s, status code %s",
                 task_id, r.status_code)
