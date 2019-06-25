@@ -141,7 +141,7 @@ def add_section(task, project_id, action, pr):
 
 def do_add_section(task_id, project_id, section):
     data = {'project': "{}".format(
-        project_id), 'section': "{}".format(section), 'insert_after': 'null'}
+        project_id), 'section': "{}".format(section), 'insert_after': None}
     r = requests.post("{}/{}/addProject".format(asana_url, task_id),
                       headers=url_headers(), data=data)
     logger.info("Add section %s to task %s, status code %s",
