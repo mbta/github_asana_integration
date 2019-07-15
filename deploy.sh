@@ -24,7 +24,8 @@ zipfile="${tmpdir}/${version}.zip"
 
 check_program() {
     # confirm the existence of the given program on the system
-    try which "${1}" > /dev/null
+    which "${1}" > /dev/null \
+     || die "Error: Could not find required dependency '${1}'."
 }
 
 clean_env() {
@@ -33,6 +34,7 @@ clean_env() {
         deactivate
     fi
     if [ -d "app/venv" ]; then
+        echo "Cleaning up existing virtualenv..."
         rm -rf app/venv
     fi
 }
@@ -51,20 +53,26 @@ cd app
 
 # set up the virtualenv and install function requirements
 clean_env
-virtualenv -p python3 venv
+echo "Setting up virtualenv..."
+try virtualenv -p python3 venv
 . venv/bin/activate
-pip install -r requirements.txt
+echo "Installing requirements..."
+try pip install -r requirements.txt
 deactivate
 
 # add the handler and its dependencies to the zipfile
-(cd venv/lib/python3.7/site-packages && zip -r9 "${zipfile}" *)
-zip -g "${zipfile}" handler.py
+echo "Packaging dependencies..."
+(cd venv/lib/python3.7/site-packages && try zip -r9 "${zipfile}" *)
+try zip -g "${zipfile}" handler.py
 
 # upload the zipfile to Lambda
-aws lambda update-function-code \
+echo "Uploading `basename "${zipfile}"` to Lambda function ${function_name}..."
+try aws lambda update-function-code \
     --function-name "${function_name}" \
     --zip-file "fileb://${zipfile}"
 
 # clean up
 clean_env
 rm -rf "${tmpdir}"
+
+echo "Success."
