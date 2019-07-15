@@ -61,7 +61,9 @@ deactivate
 zip -g "${zipfile}" handler.py
 
 # upload the zipfile to Lambda
-aws lambda update-function-code --function-name "${function_name}" --zip-file "fileb://${zipfile}"
+aws lambda update-function-code \
+    --function-name "${function_name}" \
+    --zip-file "fileb://${zipfile}"
 
 # clean up
 clean_env
