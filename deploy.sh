@@ -18,13 +18,13 @@ die() { shout "$*"; exit 111; }
 try() { "$@" || die "cannot $*"; }
 
 function_name="${1:?Usage: $0 <function-name>}"
-tmpdir="`mktemp -d /tmp/lambda-${function_name}-XXXXXX`"
-version="${function_name}-`git rev-parse --short HEAD`"
+tmpdir="$(mktemp -d "/tmp/lambda-${function_name}-XXXXXX")"
+version="${function_name}-$(git rev-parse --short HEAD)"
 zipfile="${tmpdir}/${version}.zip"
 
 check_program() {
     # confirm the existence of the given program on the system
-    which "${1}" > /dev/null \
+    command -v "${1}" > /dev/null \
      || die "Error: Could not find required dependency '${1}'."
 }
 
@@ -44,17 +44,18 @@ check_program python3
 check_program virtualenv
 
 # confirm that we're at the root of the repo
-if [ "$( cd "$(dirname "$0")" ; pwd -P )" != "`pwd`" ]; then
+if [ "$( cd "$(dirname "$0")" ; pwd -P )" != "$(pwd)" ]; then
     die "This program must be run from the root of the repo."
 fi
 
 # cd to the app directory for virtualenv setup
-cd app
+try cd app
 
 # set up the virtualenv and install function requirements
 clean_env
 echo "Setting up virtualenv..."
 try virtualenv -p python3 venv
+# shellcheck disable=SC1091
 . venv/bin/activate
 echo "Installing requirements..."
 try pip install -r requirements.txt
@@ -62,11 +63,11 @@ deactivate
 
 # add the handler and its dependencies to the zipfile
 echo "Packaging dependencies..."
-(cd venv/lib/python3.7/site-packages && try zip -r9 "${zipfile}" *)
+(try cd venv/lib/python3.7/site-packages && try zip -r9 "${zipfile}" ./*)
 try zip -g "${zipfile}" handler.py
 
 # upload the zipfile to Lambda
-echo "Uploading `basename "${zipfile}"` to Lambda function ${function_name}..."
+echo "Uploading $(basename "${zipfile}") to Lambda function ${function_name}..."
 try aws lambda update-function-code \
     --function-name "${function_name}" \
     --zip-file "fileb://${zipfile}"
