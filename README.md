@@ -22,6 +22,9 @@ The project currently includes `autopep8` for formatting and `pylint` for lintin
 
 # Deployment of new code
 
+The deployment package requires a configuration file at `app/config.ini` to be read at runtime.
+You can see an example configuration file with dummy values in `app/example_config.ini`.
+
 In the repo's base directory, run:
 
 ```bash
