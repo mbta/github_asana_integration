@@ -1,7 +1,9 @@
 # github-asana-integration
+
 This code is run as an AWS lambda that acts as a webhook for Github Pull Request Events. It updates the location of Asana tasks on a sprint board when PRs are opened or merged. It requires the Asana ticket URL to be in the PR description. It also updates a custom field on Asana tasks called "GitHub PR" with the PR's URL, including when only the PR description is updated.
 
-# Setup for local development
+## Setup for local development
+
 * `brew install python3`
 * `pip install virtualenv`
 
@@ -20,10 +22,13 @@ The project currently includes `autopep8` for formatting and `pylint` for lintin
   * `autopep -i handler.py`
   * `pylint handler.py`
 
-# Deployment of new code
+## Configuration
 
-The deployment package requires a configuration file at `app/config.ini` to be read at runtime.
-You can see an example configuration file with dummy values in `app/example_config.ini`.
+The function requires a configuration file named `config.ini` to be read at runtime. The `app/config/` directory contains configuration files for each currently deployed function. The name of each file corresponds to the name of the Lambda function in AWS. The config file is copied into place automatically during deployment.
+
+You can see an example configuration file with dummy values in `app/config/example_config.ini`.
+
+## Deployment of new code
 
 In the repo's base directory, run:
 
