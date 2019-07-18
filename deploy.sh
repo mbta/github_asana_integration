@@ -18,6 +18,8 @@ die() { shout "$*"; exit 111; }
 try() { "$@" || die "cannot $*"; }
 
 function_name="${1:?Usage: $0 <function-name>}"
+function_config_ini="config/${function_name}.ini"
+canonical_config_ini="config.ini"
 tmpdir="$(mktemp -d "/tmp/lambda-${function_name}-XXXXXX")"
 version="${function_name}-$(git rev-parse --short HEAD)"
 zipfile="${tmpdir}/${version}.zip"
@@ -51,6 +53,11 @@ fi
 # cd to the app directory for virtualenv setup
 try cd app
 
+# confirm there's a config file for the function we're deploying
+if [ ! -f "${function_config_ini}" ]; then
+    die "Error: This script requires a config file at app/${function_config_ini}."
+fi
+
 # set up the virtualenv and install function requirements
 clean_env
 echo "Setting up virtualenv..."
@@ -65,6 +72,10 @@ deactivate
 echo "Packaging dependencies..."
 (try cd venv/lib/python3.7/site-packages && try zip -r9 "${zipfile}" ./*)
 try zip -g "${zipfile}" handler.py
+
+# add the config file
+try cp "${function_config_ini}" "${tmpdir}/${canonical_config_ini}"
+(try cd "${tmpdir}" && try zip -g "${zipfile}" "${canonical_config_ini}")
 
 # upload the zipfile to Lambda
 echo "Uploading $(basename "${zipfile}") to Lambda function ${function_name}..."
