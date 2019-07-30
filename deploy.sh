@@ -77,6 +77,11 @@ try zip -g "${zipfile}" handler.py
 try cp "${function_config_ini}" "${tmpdir}/${canonical_config_ini}"
 (try cd "${tmpdir}" && try zip -g "${zipfile}" "${canonical_config_ini}")
 
+if [ -n "${DRYRUN}" ]; then
+    echo "Would have uploaded ${zipfile} to Lambda function ${function_name}, but dry run mode is enabled."
+    exit 1
+fi
+
 # upload the zipfile to Lambda
 echo "Uploading $(basename "${zipfile}") to Lambda function ${function_name}..."
 try aws lambda update-function-code \
