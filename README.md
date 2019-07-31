@@ -38,4 +38,4 @@ $ ./deploy.sh <lambda-function-name>
 
 …where `<lambda-function-name>` corresponds to the name of the Lambda function in AWS. The deploy script requires the [AWS CLI](https://aws.amazon.com/cli/) to be installed.
 
-To test the deploy script, prepend `DEPLOY=true` to the command above. This will run all build steps, but won't update the Lambda code.
+To test the deploy script, prepend `DRYRUN=true` to the command above. This will run all build steps, but won't update the Lambda code.
