@@ -1,3 +1,9 @@
+# 🚫 This repo has been deprecated
+
+We recommend https://github.com/mbta/github-asana-action for your Asana integration needs.
+
+---
+
 # github-asana-integration
 
 This code is run as an AWS lambda that acts as a webhook for Github Pull Request Events. It updates the location of Asana tasks on a sprint board when PRs are opened or merged. It requires the Asana ticket URL to be in the PR description. It also updates a custom field on Asana tasks called "GitHub PR" with the PR's URL, including when only the PR description is updated.
